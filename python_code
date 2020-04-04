@@ -1,0 +1,72 @@
+from bs4 import BeautifulSoup
+import requests
+import re
+from tkinter import *
+
+root = Tk()
+text = Text(root)
+text.pack()
+
+
+b1 = Button(root, text='사람일까?')
+b1.pack()
+b2 = Button(root, text='텍스트삭제')
+b2.pack()
+
+#set your summonor's name
+yourname = ''
+
+def btn1_click(event):
+    summoners = text.get("1.0",END).split('\n')
+    del summoners[-1]
+    for summoner in summoners:
+        
+        summoner = summoner[:summoner.index('님이 로비에 참가하셨습니다.')]
+
+        if summoner == yourname:
+            continue
+        url = 'https://www.op.gg/summoner/champions/userName=%s'%summoner
+
+        html_doc = requests.get(url).text
+
+        soup = BeautifulSoup(html_doc,'html.parser')
+
+        kda = soup.tbody.find_all('td',class_=re.compile("KDA Cell.*",re.DOTALL))
+
+        winRatio = soup.find_all('span', class_=re.compile("WinRatio.*",re.DOTALL))
+
+        winRatio_pretty = [i.string for i in winRatio]
+
+        winCount = soup.find_all('div', {'class':'Graph'})
+        
+        winCount_pretty = []
+        MeaningWinWord = '승'
+        for j in winCount:
+            try:
+                win = j.find('div', {'class':'Text Left'}).string
+                winCount_pretty.append(win)
+            except AttributeError:
+                winCount_pretty.append('0'+MeaningWinWord)
+        
+        avg = [list(i.children)[-1].strip()[:list(i.children)[-1].strip().find(':')] for i in kda]
+
+        ratio_kda_win = []
+        for i in range(len(kda)):
+            ratio_kda_win.append((winRatio_pretty[i],avg[i],winCount_pretty[i]))
+
+        mostChamp = soup.find_all('td', {'class':'ChampionName Cell'})
+
+        mostChamp_pretty = [i.a.string for i in mostChamp]
+
+        champ_record = dict(zip(mostChamp_pretty, ratio_kda_win))
+
+        print(summoner,'\n이 사람 전적임\n')
+        for key, value in champ_record.items():
+            print(key," : ",value,"\n")
+    
+def btn2_click(event):
+    text.delete(1.0,END)
+    
+b1.bind('<Button-1>', btn1_click)
+b2.bind('<Button-1>', btn2_click)
+root.mainloop()
